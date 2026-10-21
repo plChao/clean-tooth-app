@@ -1,0 +1,17 @@
+{
+  "name": "護牙日課",
+  "short_name": "護牙日課",
+  "description": "跟著動畫一區一區刷牙，完成後累積連續天數、徽章和夥伴。",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EAF1F2",
+  "theme_color": "#EAF1F2",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -279,6 +279,23 @@ a{color:var(--brand)}
 .cd{font:900 132px/1 var(--font-num);color:var(--active);margin:8px 0}
 .cd.pop{animation:cdpop .9s ease-out}
 @keyframes cdpop{from{transform:scale(1.35);opacity:.3}to{transform:scale(1);opacity:1}}
+/* countdown cheer: each buddy has its own move, replayed on every number */
+.cd-buddy{display:flex;flex-direction:column;align-items:center;gap:10px}
+.cd-buddy .bubble{font-weight:700;font-size:16px;text-align:center}
+.cd-buddy .buddy svg{transform-origin:50% 90%}
+.cd-buddy.go.tooth .buddy svg{animation:cdhop .8s ease-out}
+.cd-buddy.go.bubble .buddy svg{animation:cdsquish .8s ease-in-out}
+.cd-buddy.go.otter .buddy svg{animation:cdwiggle .8s ease-in-out}
+.cd-buddy.go.dino .buddy svg{animation:cdstomp .8s ease-out}
+.cd-buddy.go.astro .buddy svg{animation:cdlaunch .8s ease-in-out}
+.cd-buddy.go .bubble{animation:cdpop .5s ease-out}
+.cd-buddy.last.astro .buddy svg{animation:cdblast .9s ease-in forwards}
+@keyframes cdhop{0%,100%{transform:none}35%{transform:translateY(-26px) scale(.96,1.06)}65%{transform:translateY(0) scale(1.08,.92)}}
+@keyframes cdsquish{0%,100%{transform:none}25%{transform:scale(1.18,.82)}55%{transform:scale(.88,1.14)}80%{transform:scale(1.04,.97)}}
+@keyframes cdwiggle{0%,100%{transform:none}20%{transform:rotate(-14deg)}45%{transform:rotate(12deg)}70%{transform:rotate(-6deg)}}
+@keyframes cdstomp{0%,100%{transform:none}30%{transform:translateY(-18px)}50%{transform:translateY(0) scale(1.1,.9)}60%{transform:translateX(-5px)}70%{transform:translateX(5px)}80%{transform:translateX(-2px)}}
+@keyframes cdlaunch{0%,100%{transform:none}20%{transform:translateY(3px) rotate(-3deg)}40%{transform:translateY(-3px) rotate(3deg)}60%{transform:translateY(2px) rotate(-2deg)}}
+@keyframes cdblast{0%{transform:none}25%{transform:translateY(4px) scale(1.05,.95)}100%{transform:translateY(-40px)}}
 .done-view{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;flex:1}
 .done-view h1{font-size:28px;font-weight:900;line-height:1.3;text-wrap:balance}
 .rewards{list-style:none;padding:0;width:100%;display:flex;flex-direction:column;gap:8px;text-align:left}
@@ -326,7 +343,8 @@ var mmss=function(sec){sec=Math.max(0,Math.ceil(sec));return Math.floor(sec/60)+
 var KEY='huya-rike-v1';
 function fresh(){return {v:1,upd:0,days:{},points:0,owned:['tooth'],buddy:'tooth',
   totals:{brush:0,floss:0,inter:0,perfect:0},best:0,badges:{},
-  settings:{sec:5,flossSlot:'e',sound:true,vibe:true,ret:{u:{on:false,from:4,to:9},l:{on:true,from:4,to:9}},flossAnim:true,yt:{on:false,url:''}}};}
+  settings:{sec:10,brushType:'manual',flossSlot:'e',sound:true,vibe:true,teeth:{u:16,l:16},ret:{u:{on:false,from:5,to:10},l:{on:false,from:5,to:10}},flossAnim:true,yt:{on:false,url:''}}};}
+var TEETH_OK=[12,14,16];
 function merge(base,o){
   var r=Object.assign({},base,o||{});
   r.totals=Object.assign({},base.totals,(o&&o.totals)||{});
@@ -338,6 +356,10 @@ function merge(base,o){
     r.settings.ret.u={on:false,from:4,to:9};
     r.settings.ret.l={on:!!os.hasRetainer,from:os.rFrom||4,to:os.rTo||9};
   }
+  var ot=os.teeth||{};
+  r.settings.teeth={u:TEETH_OK.indexOf(ot.u)>=0?ot.u:base.settings.teeth.u,l:TEETH_OK.indexOf(ot.l)>=0?ot.l:base.settings.teeth.l};
+  /* data saved before the tooth-count setting used 14 teeth: shift retainer ends by one for the added wisdom tooth */
+  if(o&&o.settings&&!os.teeth){ ['u','l'].forEach(function(j){ r.settings.ret[j].from++; r.settings.ret[j].to++; }); }
   delete r.settings.hasRetainer; delete r.settings.rFrom; delete r.settings.rTo; delete r.settings.cleanDate;
   r.days=(o&&o.days)||{}; r.badges=(o&&o.badges)||{};
   r.owned=(o&&Array.isArray(o.owned)&&o.owned.length)?o.owned:['tooth'];
@@ -359,11 +381,11 @@ function save(){
 
 /* ---------- definitions ---------- */
 var BUDDIES=[
- {id:'tooth',name:'小白牙',price:0,desc:'陪你刷牙的第一位夥伴。'},
- {id:'bubble',name:'泡泡',price:80,desc:'愛冒泡的小水滴，刷到哪裡就在哪裡冒泡。'},
- {id:'otter',name:'水獺阿潤',price:160,desc:'動作俐落，最愛把東西洗得亮晶晶。'},
- {id:'dino',name:'小龍牙牙',price:280,desc:'背上三根尖刺，專門守護大臼齒。'},
- {id:'astro',name:'太空人小星',price:400,desc:'帶著清潔任務從太空回來。'}
+ {id:'tooth',name:'小白牙',price:0,desc:'陪你刷牙的第一位夥伴。',cheer:['小白牙暖身中，深呼吸～','牙刷拿穩了嗎？','出發！一顆一顆刷乾淨！']},
+ {id:'bubble',name:'泡泡',price:80,desc:'愛冒泡的小水滴，刷到哪裡就在哪裡冒泡。',cheer:['噗嚕噗嚕，泡泡集合！','泡泡越來越多囉～','噗！開始冒泡刷刷刷！']},
+ {id:'otter',name:'水獺阿潤',price:160,desc:'動作俐落，最愛把東西洗得亮晶晶。',cheer:['阿潤捲起袖子了','爪子擦乾淨，準備好！','洗得亮晶晶，開始！']},
+ {id:'dino',name:'小龍牙牙',price:280,desc:'背上三根尖刺，專門守護大臼齒。',cheer:['吼～小龍醒來了','背上尖刺充好電！','大臼齒交給我，衝！']},
+ {id:'astro',name:'太空人小星',price:400,desc:'帶著清潔任務從太空回來。',cheer:['清潔任務倒數中','引擎點火！','發射！清潔任務開始！']}
 ];
 var BADGES=[
  {id:'first',name:'第一次',desc:'完成第一次刷牙',icon:'tooth',bonus:10,prog:function(){return [S.totals.brush,1];}},
@@ -431,11 +453,19 @@ function buddy(id,cls){
   return '<span class="buddy '+(cls||'m')+'"><svg viewBox="0 0 120 120" aria-hidden="true">'+BODY[id]+faceParts(FACE[id])+BRUSH+'</svg></span>';
 }
 
-/* ---------- teeth geometry (two jaws share one drawing) ---------- */
-var GEO=(function(){
-  var a=0.0145, g=2.2;
-  var Wd=[26,28,20,20,19,17,20,20,17,19,20,20,28,26];
-  var Dp=[30,32,24,24,21,17,17,17,17,21,24,24,32,30];
+/* ---------- teeth geometry (one drawing per tooth count, shared by both jaws) ---------- */
+/* one side, back to front: 16 teeth has the wisdom tooth, 14 drops it, 12 also drops one premolar */
+var HALF={
+  16:{w:[24,26,28,20,20,19,17,20],d:[28,30,32,24,24,21,17,17],names:['智齒','第二大臼齒','第一大臼齒','第二小臼齒','第一小臼齒','犬齒','側門牙','門牙']},
+  14:{w:[26,28,20,20,19,17,20],d:[30,32,24,24,21,17,17],names:['第二大臼齒','第一大臼齒','第二小臼齒','第一小臼齒','犬齒','側門牙','門牙']},
+  12:{w:[26,28,20,19,17,20],d:[30,32,24,21,17,17],names:['第二大臼齒','第一大臼齒','小臼齒','犬齒','側門牙','門牙']}
+};
+var geoCache={};
+function geoFor(n){ return geoCache[n]||(geoCache[n]=makeGeo(n)); }
+function makeGeo(n){
+  var a=0.0145, g=2.2, h=n/2;
+  var Wd=HALF[n].w.concat(HALF[n].w.slice().reverse());
+  var Dp=HALF[n].d.concat(HALF[n].d.slice().reverse());
   var step=0.25, tbl=[0], x, s;
   for(x=0;x<160;x+=step){ s=2*a*(x+step/2); tbl.push(tbl[tbl.length-1]+step*Math.sqrt(1+s*s)); }
   function xAt(len){
@@ -445,14 +475,14 @@ var GEO=(function(){
     return (lo+f)*step;
   }
   function pos(sig){ var sg=sig<0?-1:1, X=sg*xAt(Math.abs(sig)); return {x:X,y:a*X*X,th:Math.atan(2*a*X)}; }
-  var sig=new Array(14), i, k;
-  sig[6]=-(g/2+Wd[6]/2);
-  for(i=5;i>=0;i--) sig[i]=sig[i+1]-(Wd[i+1]/2+g+Wd[i]/2);
-  for(i=7;i<14;i++) sig[i]=-sig[13-i];
-  var bnd=new Array(13);
-  for(k=0;k<6;k++) bnd[k]=sig[k]+Wd[k]/2+g/2;
-  bnd[6]=0;
-  for(k=7;k<13;k++) bnd[k]=-bnd[12-k];
+  var sig=new Array(n), i, k;
+  sig[h-1]=-(g/2+Wd[h-1]/2);
+  for(i=h-2;i>=0;i--) sig[i]=sig[i+1]-(Wd[i+1]/2+g+Wd[i]/2);
+  for(i=h;i<n;i++) sig[i]=-sig[n-1-i];
+  var bnd=new Array(n-1);
+  for(k=0;k<h-1;k++) bnd[k]=sig[k]+Wd[k]/2+g/2;
+  bnd[h-1]=0;
+  for(k=h;k<n-1;k++) bnd[k]=-bnd[n-2-k];
   var teeth=sig.map(function(sv,i){
     var p=pos(sv), w=Wd[i], d=Dp[i], bo=+(d*0.3).toFixed(2), bc=+(d*0.4).toFixed(2);
     return {x:p.x,y:p.y,th:p.th,deg:p.th*180/Math.PI,w:w,d:d,r:+(Math.min(w,d)*0.3).toFixed(2),bo:bo,bc:bc,bn:+(d-bo-bc).toFixed(2)};
@@ -476,14 +506,17 @@ var GEO=(function(){
     return o;
   }
   return {teeth:teeth,gaps:gaps,vb:vb,wireFor:wireFor,
-    lblR:{x:teeth[0].x,y:teeth[0].y+30}, lblL:{x:teeth[13].x,y:teeth[13].y+30}};
-})();
+    lblR:{x:teeth[0].x,y:teeth[0].y+30}, lblL:{x:teeth[n-1].x,y:teeth[n-1].y+30}};
+}
 function f1(n){return n.toFixed(2);}
-var TOOTH_SHORT=['第二大臼齒','第一大臼齒','第二小臼齒','第一小臼齒','犬齒','側門牙','門牙'];
-function toothSide(i){return i<7?'右邊':'左邊';}
-function toothShort(i){return TOOTH_SHORT[i<7?i:13-i];}
-function toothName(i){return toothSide(i)+toothShort(i);}
-function retOf(j){return (S.settings.ret&&S.settings.ret[j])||{on:false,from:4,to:9};}
+function nOf(j){return S.settings.teeth[j];}
+function halfOf(j){return nOf(j)/2;}
+function canR(j){return halfOf(j)-3;}
+function canL(j){return halfOf(j)+2;}
+function toothSide(j,i){return i<halfOf(j)?'右邊':'左邊';}
+function toothShort(j,i){var h=halfOf(j);return HALF[nOf(j)].names[i<h?i:nOf(j)-1-i];}
+function toothName(j,i){return toothSide(j,i)+toothShort(j,i);}
+function retOf(j){return (S.settings.ret&&S.settings.ret[j])||{on:false,from:canR(j),to:canL(j)};}
 function retOn(j){return !!retOf(j).on;}
 function anyRet(){return retOn('u')||retOn('l');}
 function retA(j){var r=retOf(j);return Math.min(r.from,r.to);}
@@ -492,23 +525,23 @@ function retGaps(j){var a=retA(j),b=retB(j),o=[],k;for(k=a;k<b;k++)o.push(k);ret
 function isRetGap(j,k){return retOn(j) && k>=retA(j) && k<retB(j);}
 function isRetPair(j,p){return retOn(j) && p+1>=retA(j) && p<=retB(j);}
 function jawName(j){return j==='u'?'上排':'下排';}
-function pairGaps(ks){
-  var out=[],i,j,g;
-  var L=ks.filter(function(k){return k<6;}), M=ks.filter(function(k){return k===6;}), R=ks.filter(function(k){return k>6;});
+function pairGaps(jaw,ks){
+  var out=[],i,j,g,c=halfOf(jaw)-1;
+  var L=ks.filter(function(k){return k<c;}), M=ks.filter(function(k){return k===c;}), R=ks.filter(function(k){return k>c;});
   for(i=L.length-1;i>=0;i-=2){ g=[L[i]]; if(i-1>=0) g.unshift(L[i-1]); out.unshift(g); }
   if(M.length) out.push(M);
   for(j=0;j<R.length;j+=2) out.push(R.slice(j,j+2));
   return out;
 }
-function gapGroupName(g){
+function gapGroupName(j,g){
   var a=g[0], b=g[g.length-1]+1;
-  if(a===6&&b===7) return '中間兩顆門牙之間';
-  if(toothSide(a)===toothSide(b)) return toothSide(a)+toothShort(a)+'到'+toothShort(b);
-  return toothName(a)+'到'+toothName(b);
+  if(a===halfOf(j)-1&&b===halfOf(j)) return '中間兩顆門牙之間';
+  if(toothSide(j,a)===toothSide(j,b)) return toothSide(j,a)+toothShort(j,a)+'到'+toothShort(j,b);
+  return toothName(j,a)+'到'+toothName(j,b);
 }
 function archSVG(pre,jaw,opt){
   opt=opt||{};
-  var G=GEO, s='<svg class="arch" viewBox="'+G.vb+'" role="img" aria-label="'+(jaw==='u'?'上排':'下排')+'牙齒示意圖"><defs>';
+  var G=geoFor(nOf(jaw)), s='<svg class="arch" viewBox="'+G.vb+'" role="img" aria-label="'+(jaw==='u'?'上排':'下排')+'牙齒示意圖"><defs>';
   G.teeth.forEach(function(t,i){
     s+='<clipPath id="'+pre+'c'+i+'"><rect x="'+(-t.w/2)+'" y="'+(-t.d/2)+'" width="'+t.w+'" height="'+t.d+'" rx="'+t.r+'"/></clipPath>';
   });
@@ -520,7 +553,7 @@ function archSVG(pre,jaw,opt){
       '<rect id="'+pre+'b-'+i+'-c" class="band c" x="'+x+'" y="'+(y+t.bo)+'" width="'+t.w+'" height="'+t.bc+'"/>'+
       '<rect id="'+pre+'b-'+i+'-n" class="band n'+(opt.pick?((pickFrom&&pickFrom.j===jaw&&pickFrom.i===i)?' pend':(retOn(jaw)&&i>=retA(jaw)&&i<=retB(jaw)?' inr':'')):'')+'" x="'+x+'" y="'+(y+t.bo+t.bc)+'" width="'+t.w+'" height="'+t.bn+'"/></g>'+
       '<rect class="edge" x="'+x+'" y="'+y+'" width="'+t.w+'" height="'+t.d+'" rx="'+t.r+'"/>'+
-      (opt.pick?'<rect class="pk" data-act="pickTooth" data-j="'+jaw+'" data-i="'+i+'" x="'+x+'" y="'+y+'" width="'+t.w+'" height="'+t.d+'" rx="'+t.r+'"><title>'+toothName(i)+'</title></rect>':'')+'</g>';
+      (opt.pick?'<rect class="pk" data-act="pickTooth" data-j="'+jaw+'" data-i="'+i+'" x="'+x+'" y="'+y+'" width="'+t.w+'" height="'+t.d+'" rx="'+t.r+'"><title>'+toothName(jaw,i)+'</title></rect>':'')+'</g>';
   });
   if(opt.gaps){
     G.gaps.forEach(function(gp){
@@ -547,36 +580,41 @@ function archSVG(pre,jaw,opt){
 }
 
 /* ---------- zones ---------- */
-function pairName(p){
-  if(p===6) return '中間兩顆門牙';
-  return toothSide(p)+toothShort(p)+'和'+toothShort(p+1);
+function pairName(j,p){
+  if(p===halfOf(j)-1) return '中間兩顆門牙';
+  return toothSide(j,p)+toothShort(j,p)+'和'+toothShort(j,p+1);
 }
 var SURF={o:'外側',n:'內側',c:'咬合面'};
 /* each zone is two neighbouring teeth, sliding one tooth at a time: 1-2, 2-3, 3-4 ... */
 function buildZones(){
-  var z=[], jaws=['u','l'], j, p;
-  for(j=0;j<2;j++){
-    for(p=0;p<13;p++) z.push({jaw:jaws[j],surf:'o',p:p});
-    for(p=12;p>=0;p--) z.push({jaw:jaws[j],surf:'n',p:p});
-    [0,1,2,10,11,12].forEach(function(q){ z.push({jaw:jaws[j],surf:'c',p:q}); });
-  }
+  var z=[];
+  ['u','l'].forEach(function(j){
+    var n=nOf(j), h=halfOf(j), p;
+    for(p=0;p<n-1;p++) z.push({jaw:j,surf:'o',p:p});
+    for(p=n-2;p>=0;p--) z.push({jaw:j,surf:'n',p:p});
+    /* chewing surfaces: molars and premolars only (everything behind the canines) */
+    for(p=0;p<=h-5;p++) z.push({jaw:j,surf:'c',p:p});
+    for(p=n-h+3;p<=n-2;p++) z.push({jaw:j,surf:'c',p:p});
+  });
   return z;
 }
-var ZONE_N=buildZones().length;
+function zoneN(j){ return buildZones().filter(function(z){return !j||z.jaw===j;}).length; }
 function buildInterSteps(){
   var out=[];
   ['u','l'].forEach(function(j){
     if(!retOn(j)) return;
-    pairGaps(retGaps(j)).forEach(function(g){ out.push({jaw:j,gaps:g,name:gapGroupName(g)}); });
+    pairGaps(j,retGaps(j)).forEach(function(g){ out.push({jaw:j,gaps:g,name:gapGroupName(j,g)}); });
   });
   return out;
 }
 function tipFor(z){
-  if(z.surf==='n'&&isRetPair(z.jaw,z.p)) return '這裡有維持器鐵絲，刷頭貼著輕輕停住，鐵絲上下都要刷到。';
-  if(z.jaw==='l'&&z.surf==='n'&&z.p>=4&&z.p<=8) return '下排門牙內側最容易長牙結石，刷頭貼著牙齦邊輕輕停住。';
-  if(z.surf==='o') return '刷頭貼著牙齦邊，停在牙面上，不用來回大力刷。';
-  if(z.surf==='n') return '內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊。';
-  return '咬合面的溝槽也要停一下。';
+  /* electric: hold the head still; manual: small back-and-forth strokes, 10 times */
+  var manual=S.settings.brushType==='manual';
+  if(z.surf==='n'&&isRetPair(z.jaw,z.p)) return manual?'這裡有維持器鐵絲，鐵絲上下都要刷到，小幅度來回刷 10 下。':'這裡有維持器鐵絲，刷頭貼著輕輕停住，鐵絲上下都要刷到。';
+  if(z.jaw==='l'&&z.surf==='n'&&z.p>=canR('l')&&z.p<canL('l')) return manual?'下排門牙內側最容易長牙結石，刷頭貼著牙齦邊，來回刷 10 下。':'下排門牙內側最容易長牙結石，刷頭貼著牙齦邊輕輕停住。';
+  if(z.surf==='o') return manual?'刷頭斜斜貼著牙齦邊，小幅度來回刷 10 下，不用大力。':'刷頭貼著牙齦邊，停在牙面上，不用來回大力刷。';
+  if(z.surf==='n') return manual?'內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊，來回刷 10 下。':'內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊。';
+  return manual?'咬合面的溝槽來回刷 10 下。':'咬合面的溝槽也要停一下。';
 }
 
 /* ---------- streak, badges ---------- */
@@ -672,6 +710,9 @@ function startCount(){
 function paintCount(){
   var el=$('#cd'); if(!el) return;
   el.textContent=sess.count; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  var bd=$('#cdb'), msg=$('#cdmsg'), lines=cheerBuddy().cheer;
+  if(msg) msg.textContent=lines[Math.max(0,lines.length-sess.count)];
+  if(bd){ bd.classList.remove('go','last'); void bd.offsetWidth; bd.classList.add('go'); if(sess.count===1) bd.classList.add('last'); }
   cue('zone');
 }
 function startBrush(){
@@ -734,7 +775,7 @@ function paintZone(){
   mark(z,'active');
   $('#zj').textContent=z.jaw==='u'?'上排':'下排';
   $('#zs').textContent=SURF[z.surf];
-  $('#zn').textContent=pairName(z.p);
+  $('#zn').textContent=pairName(z.jaw,z.p);
   $('#pcnt').textContent=(sess.zi+1)+' / '+sess.zones.length;
   $('#tip').textContent=tipFor(z);
 }
@@ -763,17 +804,18 @@ function prepView(){
   var flossNote='先上排、再下排，都從左邊到右邊'+(hasR?'，'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器那一段跳過':'');
   return '<div class="sess"><header class="s-top"><button class="icon-btn" data-act="prepBack" aria-label="返回">'+ICO.x+'</button><div class="s-label">'+slotName(sess.slot)+'刷牙</div></header>'+
    '<div class="prep"><div>'+buddy(S.buddy,'l float')+'</div><h2>準備好就開始</h2><ol class="plan">'+
-   '<li><b>刷牙</b><span>上排 '+(ZONE_N/2)+' 區、下排 '+(ZONE_N/2)+' 區，兩顆一區、每次往後移一顆，每區 '+sec+' 秒，共 '+mmss(ZONE_N*sec)+'</span></li>'+
+   '<li><b>刷牙</b><span>上排 '+zoneN('u')+' 區、下排 '+zoneN('l')+' 區，兩顆一區、每次往後移一顆，每區 '+sec+' 秒，共 '+mmss(zoneN()*sec)+'</span></li>'+
    (withF?'<li><b>牙線</b><span>'+flossNote+'，做完按「牙線完成」。</span></li>'+(hasR?'<li><b>牙間刷</b><span>'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器鐵絲周圍，共 '+buildInterSteps().length+' 組</span></li>':''):'')+
    '</ol><p class="hint">'+(withF?(hasR?'牙線和牙間刷先放在手邊。':'牙線先放在手邊。'):'')+
    (ytUrl()?'按開始會同時打開 YouTube 音樂，播放後回到這裡，倒數 3 秒開始。':'按開始後倒數 3 秒。想聽音樂可以在設定裡加 YouTube 連結。')+'</p></div>'+
    '<div class="s-ctl2"><button class="btn primary big" data-act="prepGo">開始</button></div></div>';
 }
+function cheerBuddy(){ return BUDDIES.filter(function(b){return b.id===S.buddy;})[0]||BUDDIES[0]; }
 function countView(){
   var z=sess.zones[0];
   return '<div class="sess"><header class="s-top"><button class="icon-btn" data-act="countBack" aria-label="返回">'+ICO.x+'</button><div class="s-label">'+slotName(sess.slot)+'刷牙</div></header>'+
-   '<div class="prep"><p class="hint">第一區</p><h2>'+jawName(z.jaw)+SURF[z.surf]+'<br>'+pairName(z.p)+'</h2>'+
-   '<div class="cd" id="cd" aria-live="assertive">3</div><p class="hint">牙刷放到位置，準備開始</p></div></div>';
+   '<div class="prep"><div class="cd-buddy '+cheerBuddy().id+'" id="cdb">'+buddy(cheerBuddy().id,'l scrub')+'<p class="bubble" id="cdmsg"></p></div>'+
+   '<div class="cd" id="cd" aria-live="assertive">3</div><p class="hint">第一區：'+jawName(z.jaw)+SURF[z.surf]+'，'+pairName(z.jaw,z.p)+'</p></div></div>';
 }
 function brushView(){
   return '<div class="sess">'+
@@ -886,7 +928,7 @@ function viewToday(){
   return '<div class="top"><span class="brand">護牙日課</span><div class="pills"><span class="pill streak">'+ICO.flame+'<span class="num">'+st+'</span></span><span class="pill">'+ICO.coin+'<span class="num">'+S.points+'</span></span></div></div>'+
    '<div class="hero">'+buddy(S.buddy,'l float')+'<div><h1>'+greet+'</h1><p>'+(S.totals.brush===0?'一天兩次，把牙齒好好照顧起來。':'今天的'+slotName(slot)+(done?'已經完成。':'還沒刷。'))+'</p></div></div>'+
    '<div class="seg" role="group" aria-label="選擇時段"><button data-act="slot" data-slot="m" aria-pressed="'+(slot==='m')+'">早上</button><button data-act="slot" data-slot="e" aria-pressed="'+(slot==='e')+'">晚上</button></div>'+
-   '<button class="btn primary big" data-act="start">開始'+slotName(slot)+'刷牙<span class="btn-sub">'+(done?'今天已完成，再做一次不加點數':withF?(anyRet()?'刷牙 → 牙線 → 牙間刷':'刷牙 → 牙線'):'只刷牙，共 '+mmss(ZONE_N*S.settings.sec))+'</span></button>'+
+   '<button class="btn primary big" data-act="start">開始'+slotName(slot)+'刷牙<span class="btn-sub">'+(done?'今天已完成，再做一次不加點數':withF?(anyRet()?'刷牙 → 牙線 → 牙間刷':'刷牙 → 牙線'):'只刷牙，共 '+mmss(zoneN()*S.settings.sec))+'</span></button>'+
    '<div class="card"><h3>今天</h3><ul class="chk" style="grid-template-columns:repeat('+chk.length+',1fr)">'+chk.map(function(c){var on=!!r[c[0]];return '<li class="'+(on?'on':'')+'"><span class="dot">'+(on?ICO.check:'')+'</span>'+c[1]+'</li>';}).join('')+'</ul></div>'+
    '<div class="card"><h3>你正在成為好好照顧牙齒的人</h3><p class="muted">'+(S.totals.brush===0?'完成第一次刷牙，就是投下第一票。':'到目前為止，你已經投了 '+S.totals.brush+' 票。')+'</p>'+
    (nb?'<div><div class="row-between small"><span>下一個徽章：<b>'+esc(nb.b.name)+'</b></span><span class="num">'+nb.cur+' / '+nb.goal+'</span></div><div class="bar" style="margin-top:6px"><i style="width:'+Math.round(nb.ratio*100)+'%"></i></div></div>':'')+'</div>'+
@@ -957,16 +999,32 @@ function retainerPicker(j){
   var a=retA(j), b=retB(j), n=b-a+1, gn=retGaps(j).length, pend=!!(pickFrom&&pickFrom.j===j);
   return '<div class="pickwrap"><h3>'+jawName(j)+'鐵絲從哪一顆到哪一顆</h3>'+
    '<p class="muted small">'+(pend
-     ? '已選 <b>'+toothName(pickFrom.i)+'</b>，再點另一端。'
-     : '現在是 <b>'+toothName(a)+'</b> 到 <b>'+toothName(b)+'</b>，共 '+n+' 顆、'+gn+' 個牙縫。點牙齒可以重設：先點一端，再點另一端。')+'</p>'+
+     ? '已選 <b>'+toothName(j,pickFrom.i)+'</b>，再點另一端。'
+     : '現在是 <b>'+toothName(j,a)+'</b> 到 <b>'+toothName(j,b)+'</b>，共 '+n+' 顆、'+gn+' 個牙縫。點牙齒可以重設：先點一端，再點另一端。')+'</p>'+
    '<div class="pickbox">'+archSVG('pk'+j+'-',j,{pick:true})+'</div>'+
    '<div class="row2"><button class="btn ghost" data-act="pickCancel" '+(pend?'':'disabled')+'>取消選取</button>'+
    '<button class="btn" data-act="pickDefault" data-j="'+j+'">回到預設（犬齒到犬齒）</button></div></div>';
 }
+function teethCard(){
+  var rows=['u','l'].map(function(j){
+    var n=nOf(j);
+    return '<div class="setting"><div><h3>'+jawName(j)+'</h3><p class="muted small">'+(n===16?'含智齒':n===14?'沒有智齒':'沒有智齒，少兩顆小臼齒')+'</p></div>'+
+     '<div class="stepper"><button class="icon-btn" data-act="teethDec" data-j="'+j+'" aria-label="'+jawName(j)+'減少兩顆" '+(n<=12?'disabled':'')+'>−</button><b>'+n+' 顆</b>'+
+     '<button class="icon-btn" data-act="teethInc" data-j="'+j+'" aria-label="'+jawName(j)+'增加兩顆" '+(n>=16?'disabled':'')+'>＋</button></div></div>';
+  }).join('');
+  return '<div class="card"><h3>牙齒數量</h3><p class="muted small">左右各算一半，一次加減兩顆。16 顆含智齒；14 顆是沒有智齒；12 顆是沒有智齒又拔過小臼齒（矯正常見）。</p>'+rows+'</div>';
+}
+/* keep the retainer on the same teeth: adding two teeth puts one more at the back of each side */
+function setTeeth(j,n){
+  var r=S.settings.ret[j], d=(n-nOf(j))/2;
+  S.settings.teeth[j]=n;
+  r.from=Math.max(0,Math.min(n-1,r.from+d)); r.to=Math.max(0,Math.min(n-1,r.to+d));
+  if(r.from===r.to){ r.from=canR(j); r.to=canL(j); }
+}
 function retainerCard(){
   var rows=['u','l'].map(function(j){
     return '<div class="setting"><div><h3>'+jawName(j)+'</h3><p class="muted small">'+
-      (retOn(j)?toothName(retA(j))+' 到 '+toothName(retB(j))+'，'+retGaps(j).length+' 個牙縫用牙間刷':'沒有，牙縫全部用牙線')+
+      (retOn(j)?toothName(j,retA(j))+' 到 '+toothName(j,retB(j))+'，'+retGaps(j).length+' 個牙縫用牙間刷':'沒有，牙縫全部用牙線')+
       '</p></div><button class="switch" data-act="toggleRet" data-j="'+j+'" aria-pressed="'+retOn(j)+'" aria-label="'+jawName(j)+'固定式維持器"></button></div>';
   }).join('');
   return '<div class="card"><h3>固定式維持器</h3><p class="muted small">黏在牙齒內側的鐵絲，上下排都可能有。有鐵絲的那一排，牙線會跳過鐵絲範圍，改用牙間刷。牙間刷的尺寸一定要請牙醫幫你挑，太大會傷牙齦。</p>'+
@@ -981,8 +1039,10 @@ function musicCard(){
 function viewSettings(){
   var st=S.settings;
   return '<div class="top"><span class="brand">設定</span></div>'+
-   '<div class="card"><h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 '+ZONE_N+' 區（兩顆一區，每次往後移一顆），全部刷完 '+mmss(ZONE_N*st.sec)+'。</p></div>'+
-   retainerCard()+
+   '<div class="card"><h3>牙刷</h3><div class="seg" role="group" aria-label="牙刷種類"><button data-act="brushType" data-type="electric" aria-pressed="'+(st.brushType==='electric')+'">電動牙刷</button><button data-act="brushType" data-type="manual" aria-pressed="'+(st.brushType==='manual')+'">一般牙刷</button></div>'+
+   '<p class="muted small">'+(st.brushType==='manual'?'每一區提示「小幅度來回刷 10 下」。':'每一區提示「刷頭停在牙面上」，不用來回刷。')+'</p>'+
+   '<h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 '+zoneN()+' 區（兩顆一區，每次往後移一顆），全部刷完 '+mmss(zoneN()*st.sec)+'。</p></div>'+
+   teethCard()+retainerCard()+
    '<div class="card"><div class="setting"><div><h3>牙線教學動畫</h3><p class="muted small">牙線步驟上方顯示動作示範，關掉就只剩文字說明。</p></div><button class="switch" data-act="toggleAnim" aria-pressed="'+st.flossAnim+'" aria-label="牙線教學動畫"></button></div></div>'+
    musicCard()+
    '<div class="card"><h3>牙線（和牙間刷）放在</h3><div class="seg"><button data-act="flossSlot" data-slot="m" aria-pressed="'+(st.flossSlot==='m')+'">早上</button><button data-act="flossSlot" data-slot="e" aria-pressed="'+(st.flossSlot==='e')+'">晚上</button></div></div>'+
@@ -1032,7 +1092,8 @@ function act(a,d){
       render(); break;
     case 'use': if(S.owned.indexOf(d.id)>=0){S.buddy=d.id; save();} render(); break;
     case 'secDec': S.settings.sec=Math.max(3,S.settings.sec-1); save(); render(); break;
-    case 'secInc': S.settings.sec=Math.min(10,S.settings.sec+1); save(); render(); break;
+    case 'secInc': S.settings.sec=Math.min(20,S.settings.sec+1); save(); render(); break;
+    case 'brushType': S.settings.brushType=d.type; save(); render(); break;
     case 'flossSlot': S.settings.flossSlot=d.slot; save(); render(); break;
     case 'toggleRet': S.settings.ret[d.j].on=!S.settings.ret[d.j].on; pickFrom=null; save(); render(); break;
     case 'pickTooth':
@@ -1042,7 +1103,9 @@ function act(a,d){
       else pickFrom=null;
       render(); break;
     case 'pickCancel': pickFrom=null; render(); break;
-    case 'pickDefault': S.settings.ret[d.j].from=4; S.settings.ret[d.j].to=9; pickFrom=null; save(); render(); break;
+    case 'pickDefault': S.settings.ret[d.j].from=canR(d.j); S.settings.ret[d.j].to=canL(d.j); pickFrom=null; save(); render(); break;
+    case 'teethDec': if(nOf(d.j)>12){ setTeeth(d.j,nOf(d.j)-2); pickFrom=null; save(); } render(); break;
+    case 'teethInc': if(nOf(d.j)<16){ setTeeth(d.j,nOf(d.j)+2); pickFrom=null; save(); } render(); break;
     case 'toggleYt': S.settings.yt.on=!S.settings.yt.on; save(); render(); break;
     case 'toggleAnim': S.settings.flossAnim=!S.settings.flossAnim; save(); render(); break;
     case 'toggleSound': S.settings.sound=!S.settings.sound; save(); render(); break;

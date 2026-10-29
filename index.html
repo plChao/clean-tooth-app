@@ -393,6 +393,8 @@ var BADGES=[
  {id:'s7',name:'連續 7 天',desc:'連續 7 天',icon:'flame',bonus:20,prog:function(){return [streakBest(),7];}},
  {id:'s14',name:'連續 14 天',desc:'連續 14 天',icon:'flame',bonus:30,prog:function(){return [streakBest(),14];}},
  {id:'s30',name:'連續 30 天',desc:'連續 30 天',icon:'flame',bonus:60,prog:function(){return [streakBest(),30];}},
+ {id:'floss1',name:'第一次牙線',desc:'完成第一次牙線',icon:'thread',bonus:5,prog:function(){return [S.totals.floss,1];}},
+ {id:'floss3',name:'牙線 3 次',desc:'牙線累計 3 次',icon:'thread',bonus:10,prog:function(){return [S.totals.floss,3];}},
  {id:'floss7',name:'牙線 7 次',desc:'牙線累計 7 次',icon:'thread',bonus:15,prog:function(){return [S.totals.floss,7];}},
  {id:'floss30',name:'牙線 30 次',desc:'牙線累計 30 次',icon:'thread',bonus:40,prog:function(){return [S.totals.floss,30];}},
  {id:'inter7',name:'維持器守護者',desc:'牙間刷累計 7 次',icon:'wire',bonus:15,needR:true,prog:function(){return [S.totals.inter,7];}},
@@ -585,16 +587,17 @@ function pairName(j,p){
   return toothSide(j,p)+toothShort(j,p)+'和'+toothShort(j,p+1);
 }
 var SURF={o:'外側',n:'內側',c:'咬合面'};
-/* each zone is two neighbouring teeth, sliding one tooth at a time: 1-2, 2-3, 3-4 ... */
+/* each zone is two neighbouring teeth: 1-2, 3-4, 5-6 ... */
+/* order: lower jaw first, then upper. Each jaw goes once around: inside from the right
+   back tooth to the left back tooth, outside back again, then the chewing surfaces */
 function buildZones(){
   var z=[];
-  ['u','l'].forEach(function(j){
+  ['l','u'].forEach(function(j){
     var n=nOf(j), h=halfOf(j), p;
-    for(p=0;p<n-1;p++) z.push({jaw:j,surf:'o',p:p});
-    for(p=n-2;p>=0;p--) z.push({jaw:j,surf:'n',p:p});
-    /* chewing surfaces: molars and premolars only (everything behind the canines) */
-    for(p=0;p<=h-5;p++) z.push({jaw:j,surf:'c',p:p});
-    for(p=n-h+3;p<=n-2;p++) z.push({jaw:j,surf:'c',p:p});
+    for(p=0;p<n-1;p+=2) z.push({jaw:j,surf:'n',p:p});
+    for(p=n-2;p>=0;p-=2) z.push({jaw:j,surf:'o',p:p});
+    /* chewing surfaces: pairs that include a molar or premolar (behind the canines) */
+    for(p=0;p<n-1;p+=2){ if(p<=h-4||p>=n-h+2) z.push({jaw:j,surf:'c',p:p}); }
   });
   return z;
 }
@@ -607,14 +610,16 @@ function buildInterSteps(){
   });
   return out;
 }
+function isFront(j,p){return p>=canR(j)&&p<canL(j);}
 function tipFor(z){
-  /* electric: hold the head still; manual: small back-and-forth strokes, 10 times */
+  /* manual: modified Bass, short side-to-side strokes about 10 times; electric: hold the head still */
   var manual=S.settings.brushType==='manual';
-  if(z.surf==='n'&&isRetPair(z.jaw,z.p)) return manual?'這裡有維持器鐵絲，鐵絲上下都要刷到，小幅度來回刷 10 下。':'這裡有維持器鐵絲，刷頭貼著輕輕停住，鐵絲上下都要刷到。';
-  if(z.jaw==='l'&&z.surf==='n'&&z.p>=canR('l')&&z.p<canL('l')) return manual?'下排門牙內側最容易長牙結石，刷頭貼著牙齦邊，來回刷 10 下。':'下排門牙內側最容易長牙結石，刷頭貼著牙齦邊輕輕停住。';
-  if(z.surf==='o') return manual?'刷頭斜斜貼著牙齦邊，小幅度來回刷 10 下，不用大力。':'刷頭貼著牙齦邊，停在牙面上，不用來回大力刷。';
-  if(z.surf==='n') return manual?'內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊，來回刷 10 下。':'內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊。';
-  return manual?'咬合面的溝槽來回刷 10 下。':'咬合面的溝槽也要停一下。';
+  var ang='刷毛朝'+(z.jaw==='u'?'上':'下')+'斜 45 度，貼在牙齒和牙齦交界';
+  var ret=z.surf==='n'&&isRetPair(z.jaw,z.p), front=z.surf==='n'&&isFront(z.jaw,z.p);
+  if(z.surf==='c') return manual?'咬合面的溝槽，短距離來回刷 10 下。':'刷頭停在咬合面上，溝槽也要停一下。';
+  if(front) return (ret?'這裡有維持器鐵絲，鐵絲上下都要刷到。':'')+(manual?'前牙內側：牙刷打直，貼著牙齦上下刷 10 下。':'前牙內側：牙刷打直，刷頭貼著牙齦停住。');
+  if(ret) return '這裡有維持器鐵絲，'+ang+'，鐵絲上下都要刷到'+(manual?'，短距離左右刷 10 下。':'，輕輕停住。');
+  return ang+(manual?'，短距離左右刷 10 下，最後幾下往咬合面轉。':'，刷頭停住，不用來回大力刷。');
 }
 
 /* ---------- streak, badges ---------- */
@@ -804,7 +809,7 @@ function prepView(){
   var flossNote='先上排、再下排，都從左邊到右邊'+(hasR?'，'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器那一段跳過':'');
   return '<div class="sess"><header class="s-top"><button class="icon-btn" data-act="prepBack" aria-label="返回">'+ICO.x+'</button><div class="s-label">'+slotName(sess.slot)+'刷牙</div></header>'+
    '<div class="prep"><div>'+buddy(S.buddy,'l float')+'</div><h2>準備好就開始</h2><ol class="plan">'+
-   '<li><b>刷牙</b><span>上排 '+zoneN('u')+' 區、下排 '+zoneN('l')+' 區，兩顆一區、每次往後移一顆，每區 '+sec+' 秒，共 '+mmss(zoneN()*sec)+'</span></li>'+
+   '<li><b>刷牙</b><span>先下排（'+zoneN('l')+' 區）再上排（'+zoneN('u')+' 區）；每排繞一圈：內側從右邊最後面刷到左邊最後面，外側再刷回來，最後咬合面。兩顆一區，每區 '+sec+' 秒，共 '+mmss(zoneN()*sec)+'</span></li>'+
    (withF?'<li><b>牙線</b><span>'+flossNote+'，做完按「牙線完成」。</span></li>'+(hasR?'<li><b>牙間刷</b><span>'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器鐵絲周圍，共 '+buildInterSteps().length+' 組</span></li>':''):'')+
    '</ol><p class="hint">'+(withF?(hasR?'牙線和牙間刷先放在手邊。':'牙線先放在手邊。'):'')+
    (ytUrl()?'按開始會同時打開 YouTube 音樂，播放後回到這裡，倒數 3 秒開始。':'按開始後倒數 3 秒。想聽音樂可以在設定裡加 YouTube 連結。')+'</p></div>'+
@@ -840,11 +845,11 @@ function flossDemo(){
    '<g class="fl fl-b"><g class="dm-scrub"><path class="fl-line" d="M28 34L118 34C136 34 138 97 146 97C154 97 160 64 176 34L272 34"/>'+hands+'</g></g>'+
    '<g class="fl fl-c"><g class="dm-scrub"><path class="fl-line" d="M28 34L124 34C140 64 146 97 154 97C162 97 164 34 182 34L272 34"/>'+hands+'</g></g>'+
    '<path class="fl-arrow" d="M232 44V92M226 52l6-8 6 8M226 84l6 8 6-8" fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'+
-   '</svg><div class="capbox"><p class="cap c1">① 拉緊線，前後輕輕拉鋸，滑進牙縫</p><p class="cap c2">② 彎成 C 字形貼住一顆牙，上下刮</p><p class="cap c3">③ 換另一顆牙，再刮一次</p></div></div>';
+   '</svg><div class="capbox"><p class="cap c1">① 拉緊線，斜斜輕輕滑進牙縫</p><p class="cap c2">② 貼著一顆牙的表面往上刮</p><p class="cap c3">③ 牙縫兩側的牙面都要刮</p></div></div>';
 }
 function gapView(kind){
   var m=GAP_META[kind], n=sess.steps.indexOf(kind)+1, tot=sess.steps.length;
-  var how='<p class="muted small">牙間刷對準鐵絲和牙齒之間的縫，輕輕進出幾次。<b>牙間刷的尺寸一定要請牙醫幫你挑</b>，太大會傷牙齦。放不進去就不要硬塞，回診時問牙醫。</p>';
+  var how='<p class="muted small">牙間刷沾清水放進牙縫，貼著牙肉內外來回約 5 次，輕輕刷到牙根表面。最後面的牙可以把刷毛彎成 L 字型，或用有角度的牙間刷。<b>尺寸選能輕鬆放進牙縫的最大號</b>，放不進去不要硬塞，第一次最好請牙醫幫你挑。</p>';
   return '<div class="sess">'+stepTop(m.title,n,tot)+
    '<div class="s-zone"><div class="chips"><span class="chip j" id="gj"></span><span class="chip s" id="gc"></span></div><h2 class="s-name" id="gn"></h2></div>'+
    '<div class="s-arch sm" id="garch"></div>'+how+
@@ -853,14 +858,12 @@ function gapView(kind){
 }
 function flossHow(){
   return (S.settings.flossAnim?flossDemo():'')+
-     '<details class="how"><summary>牙線怎麼用（ADA 建議步驟）</summary><ol>'+
-     '<li>拉出約 45 公分（18 吋）的線，大部分繞在一隻中指上，剩下的繞在另一手的中指。</li>'+
-     '<li>用拇指和食指把線拉緊。</li>'+
-     '<li>輕輕前後摩擦，把線帶進牙縫，不要把線用力彈進牙齦。</li>'+
-     '<li>線到牙齦邊緣時，彎成 C 字形貼住一顆牙，輕輕滑進牙齦和牙齒之間。</li>'+
-     '<li>線緊貼牙齒、稍微離開牙齦，順著牙齒的形狀上下摩擦。</li>'+
-     '<li>上下排每顆牙都這樣做，最後面那顆牙的後側也別忘了。</li></ol>'+
-     '<p class="small muted src">步驟依據：美國牙醫學會（ADA）MouthHealthy〈<a href="https://www.mouthhealthy.org/all-topics-a-z/flossing" target="_blank" rel="noopener">Flossing</a>〉</p></details>';
+     '<details class="how"><summary>牙線怎麼用</summary><ol>'+
+     '<li>取一手臂長度的牙線，兩端纏繞在中指上，兩手之間留一段距離。</li>'+
+     '<li>兩手指分別放在口內和口外，從兩顆牙齒之間斜斜輕輕移動，讓牙線滑進牙齦溝。</li>'+
+     '<li>把牙線拉緊，貼著牙齒的表面往上刮，牙縫兩側的牙面都要清潔。</li>'+
+     '<li>換下一個牙縫時，一端放鬆一圈、另一端纏繞一圈，用乾淨的一段線，一直做到最後一個牙面。</li></ol>'+
+     '<p class="small muted src">可以依需求選一般牙線、三合一牙線或牙橋穿透線；手部活動不方便可以用牙線棒或沖牙機。</p></details>';
 }
 function paintGap(kind){
   var m=GAP_META[kind], q=sess.seq[kind], st=q.steps[q.i], arch=$('#garch'); if(!arch) return;
@@ -1027,7 +1030,7 @@ function retainerCard(){
       (retOn(j)?toothName(j,retA(j))+' 到 '+toothName(j,retB(j))+'，'+retGaps(j).length+' 個牙縫用牙間刷':'沒有，牙縫全部用牙線')+
       '</p></div><button class="switch" data-act="toggleRet" data-j="'+j+'" aria-pressed="'+retOn(j)+'" aria-label="'+jawName(j)+'固定式維持器"></button></div>';
   }).join('');
-  return '<div class="card"><h3>固定式維持器</h3><p class="muted small">黏在牙齒內側的鐵絲，上下排都可能有。有鐵絲的那一排，牙線會跳過鐵絲範圍，改用牙間刷。牙間刷的尺寸一定要請牙醫幫你挑，太大會傷牙齦。</p>'+
+  return '<div class="card"><h3>固定式維持器</h3><p class="muted small">黏在牙齒內側的鐵絲，上下排都可能有。有鐵絲的那一排，牙線會跳過鐵絲範圍，改用牙間刷。牙間刷選能輕鬆放進牙縫的最大號，太大會傷牙齦，第一次最好請牙醫幫你挑。</p>'+
    rows+['u','l'].filter(retOn).map(retainerPicker).join('')+'</div>';
 }
 function musicCard(){
@@ -1040,8 +1043,8 @@ function viewSettings(){
   var st=S.settings;
   return '<div class="top"><span class="brand">設定</span></div>'+
    '<div class="card"><h3>牙刷</h3><div class="seg" role="group" aria-label="牙刷種類"><button data-act="brushType" data-type="electric" aria-pressed="'+(st.brushType==='electric')+'">電動牙刷</button><button data-act="brushType" data-type="manual" aria-pressed="'+(st.brushType==='manual')+'">一般牙刷</button></div>'+
-   '<p class="muted small">'+(st.brushType==='manual'?'每一區提示「小幅度來回刷 10 下」。':'每一區提示「刷頭停在牙面上」，不用來回刷。')+'</p>'+
-   '<h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 '+zoneN()+' 區（兩顆一區，每次往後移一顆），全部刷完 '+mmss(zoneN()*st.sec)+'。</p></div>'+
+   '<p class="muted small">'+(st.brushType==='manual'?'改良式貝氏刷牙法：刷毛斜 45 度貼著牙齦交界，短距離左右刷 10 下。選中等或軟毛、刷頭小的牙刷，力道放輕。':'每一區提示「刷頭停在牙面上」，不用來回刷。')+'</p>'+
+   '<h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 '+zoneN()+' 區（兩顆一區），全部刷完 '+mmss(zoneN()*st.sec)+'。</p></div>'+
    teethCard()+retainerCard()+
    '<div class="card"><div class="setting"><div><h3>牙線教學動畫</h3><p class="muted small">牙線步驟上方顯示動作示範，關掉就只剩文字說明。</p></div><button class="switch" data-act="toggleAnim" aria-pressed="'+st.flossAnim+'" aria-label="牙線教學動畫"></button></div></div>'+
    musicCard()+

@@ -1,6 +1,6 @@
 /* Offline cache. Bump VERSION whenever index.html or the icons change,
    so installed copies drop the old cache. */
-var VERSION = 'huya-v5';
+var VERSION = 'huya-v8';
 var CORE = [
   './',
   './index.html',

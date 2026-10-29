@@ -153,7 +153,9 @@ h1,h2,h3,p,ul,ol{margin:0}
 .switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:var(--muted);transition:transform .15s}
 .switch[aria-pressed="true"]{background:var(--done);border-color:var(--done)}
 .switch[aria-pressed="true"]::after{transform:translateX(24px);background:#fff}
-input[type="date"]{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);padding:0 10px}
+input[type="date"],input[type="url"]{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);padding:0 10px}
+input[type="url"]{width:100%}
+.field{display:flex;flex-direction:column;gap:6px}
 
 /* buddies */
 .buddy{display:inline-block;line-height:0;flex:none}
@@ -274,6 +276,9 @@ a{color:var(--brand)}
 .plan b{font-size:16px}
 .plan span{font-size:14px;color:var(--muted)}
 .hint{font-size:14px;color:var(--muted)}
+.cd{font:900 132px/1 var(--font-num);color:var(--active);margin:8px 0}
+.cd.pop{animation:cdpop .9s ease-out}
+@keyframes cdpop{from{transform:scale(1.35);opacity:.3}to{transform:scale(1);opacity:1}}
 .done-view{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;flex:1}
 .done-view h1{font-size:28px;font-weight:900;line-height:1.3;text-wrap:balance}
 .rewards{list-style:none;padding:0;width:100%;display:flex;flex-direction:column;gap:8px;text-align:left}
@@ -321,11 +326,12 @@ var mmss=function(sec){sec=Math.max(0,Math.ceil(sec));return Math.floor(sec/60)+
 var KEY='huya-rike-v1';
 function fresh(){return {v:1,upd:0,days:{},points:0,owned:['tooth'],buddy:'tooth',
   totals:{brush:0,floss:0,inter:0,perfect:0},best:0,badges:{},
-  settings:{sec:5,flossSlot:'e',sound:true,vibe:true,ret:{u:{on:false,from:4,to:9},l:{on:true,from:4,to:9}},flossAnim:true}};}
+  settings:{sec:5,flossSlot:'e',sound:true,vibe:true,ret:{u:{on:false,from:4,to:9},l:{on:true,from:4,to:9}},flossAnim:true,yt:{on:false,url:''}}};}
 function merge(base,o){
   var r=Object.assign({},base,o||{});
   r.totals=Object.assign({},base.totals,(o&&o.totals)||{});
   r.settings=Object.assign({},base.settings,(o&&o.settings)||{});
+  r.settings.yt=Object.assign({},base.settings.yt,((o&&o.settings)||{}).yt||{});
   var os=(o&&o.settings)||{}, orr=os.ret||{};
   r.settings.ret={u:Object.assign({},base.settings.ret.u,orr.u||{}),l:Object.assign({},base.settings.ret.l,orr.l||{})};
   if(!os.ret && os.hasRetainer!==undefined){
@@ -484,7 +490,7 @@ function retA(j){var r=retOf(j);return Math.min(r.from,r.to);}
 function retB(j){var r=retOf(j);return Math.max(r.from,r.to);}
 function retGaps(j){var a=retA(j),b=retB(j),o=[],k;for(k=a;k<b;k++)o.push(k);return o;}
 function isRetGap(j,k){return retOn(j) && k>=retA(j) && k<retB(j);}
-function isRetPair(j,p){return retOn(j) && 2*p+1>=retA(j) && 2*p<=retB(j);}
+function isRetPair(j,p){return retOn(j) && p+1>=retA(j) && p<=retB(j);}
 function jawName(j){return j==='u'?'上排':'下排';}
 function pairGaps(ks){
   var out=[],i,j,g;
@@ -506,7 +512,7 @@ function archSVG(pre,jaw,opt){
   G.teeth.forEach(function(t,i){
     s+='<clipPath id="'+pre+'c'+i+'"><rect x="'+(-t.w/2)+'" y="'+(-t.d/2)+'" width="'+t.w+'" height="'+t.d+'" rx="'+t.r+'"/></clipPath>';
   });
-  s+='</defs>';
+  s+='</defs><g transform="scale(-1 1)">';
   G.teeth.forEach(function(t,i){
     var x=-t.w/2, y=-t.d/2;
     s+='<g transform="translate('+f1(t.x)+' '+f1(t.y)+') rotate('+f1(t.deg)+')"><g clip-path="url(#'+pre+'c'+i+')">'+
@@ -526,39 +532,37 @@ function archSVG(pre,jaw,opt){
       if(cls) s+='<line id="'+pre+'g-'+gp.k+'" class="gap '+cls+'" x1="'+f1(gp.x1)+'" y1="'+f1(gp.y1)+'" x2="'+f1(gp.x2)+'" y2="'+f1(gp.y2)+'"/>';
     });
   }
+  var txt='';
   if(opt.wire!==false && retOn(jaw)){
     var wp=G.wireFor(retA(jaw),retB(jaw)), lx=0, ly=-1e9;
     wp.forEach(function(p){ lx+=p[0]; ly=Math.max(ly,p[1]); });
     s+='<polyline class="wire" points="'+wp.map(function(p){return f1(p[0])+','+f1(p[1]);}).join(' ')+'"/>';
     [wp[0],wp[wp.length-1]].forEach(function(p){ s+='<circle class="wire-dot" cx="'+f1(p[0])+'" cy="'+f1(p[1])+'" r="2.800"/>'; });
-    s+='<text class="lbl" x="'+f1(lx/wp.length)+'" y="'+f1(ly+16)+'" text-anchor="middle">維持器</text>';
+    txt+='<text class="lbl" x="'+f1(-lx/wp.length)+'" y="'+f1(ly+16)+'" text-anchor="middle">維持器</text>';
   }
-  s+='<text class="lbl" x="'+f1(G.lblR.x)+'" y="'+f1(G.lblR.y)+'" text-anchor="middle">右</text>';
-  s+='<text class="lbl" x="'+f1(G.lblL.x)+'" y="'+f1(G.lblL.y)+'" text-anchor="middle">左</text>';
+  s+='</g>'+txt;
+  s+='<text class="lbl" x="'+f1(-G.lblR.x)+'" y="'+f1(G.lblR.y)+'" text-anchor="middle">右</text>';
+  s+='<text class="lbl" x="'+f1(-G.lblL.x)+'" y="'+f1(G.lblL.y)+'" text-anchor="middle">左</text>';
   return s+'</svg>';
 }
 
 /* ---------- zones ---------- */
-var PAIR_NAMES=['右邊最後兩顆（大臼齒）','右邊小臼齒','右邊犬齒和側門牙','中間兩顆門牙','左邊側門牙和犬齒','左邊小臼齒','左邊最後兩顆（大臼齒）'];
+function pairName(p){
+  if(p===6) return '中間兩顆門牙';
+  return toothSide(p)+toothShort(p)+'和'+toothShort(p+1);
+}
 var SURF={o:'外側',n:'內側',c:'咬合面'};
+/* each zone is two neighbouring teeth, sliding one tooth at a time: 1-2, 2-3, 3-4 ... */
 function buildZones(){
-  var z=[], jaws=['u','l'], j, p, q;
+  var z=[], jaws=['u','l'], j, p;
   for(j=0;j<2;j++){
-    for(p=0;p<7;p++) z.push({jaw:jaws[j],surf:'o',p:p});
-    for(p=6;p>=0;p--) z.push({jaw:jaws[j],surf:'n',p:p});
-    [0,1,5,6].forEach(function(q){ z.push({jaw:jaws[j],surf:'c',p:q}); });
+    for(p=0;p<13;p++) z.push({jaw:jaws[j],surf:'o',p:p});
+    for(p=12;p>=0;p--) z.push({jaw:jaws[j],surf:'n',p:p});
+    [0,1,2,10,11,12].forEach(function(q){ z.push({jaw:jaws[j],surf:'c',p:q}); });
   }
   return z;
 }
-function buildFlossSteps(){
-  var out=[];
-  ['u','l'].forEach(function(j){
-    var ks=[],k;
-    for(k=0;k<13;k++){ if(!isRetGap(j,k)) ks.push(k); }
-    pairGaps(ks).forEach(function(g){ out.push({jaw:j,gaps:g,name:gapGroupName(g)}); });
-  });
-  return out;
-}
+var ZONE_N=buildZones().length;
 function buildInterSteps(){
   var out=[];
   ['u','l'].forEach(function(j){
@@ -569,7 +573,7 @@ function buildInterSteps(){
 }
 function tipFor(z){
   if(z.surf==='n'&&isRetPair(z.jaw,z.p)) return '這裡有維持器鐵絲，刷頭貼著輕輕停住，鐵絲上下都要刷到。';
-  if(z.jaw==='l'&&z.surf==='n'&&z.p>=2&&z.p<=4) return '下排門牙內側最容易長牙結石，刷頭貼著牙齦邊輕輕停住。';
+  if(z.jaw==='l'&&z.surf==='n'&&z.p>=4&&z.p<=8) return '下排門牙內側最容易長牙結石，刷頭貼著牙齦邊輕輕停住。';
   if(z.surf==='o') return '刷頭貼著牙齦邊，停在牙面上，不用來回大力刷。';
   if(z.surf==='n') return '內側（舌頭那面）最容易漏掉，刷頭斜一點貼住牙齦邊。';
   return '咬合面的溝槽也要停一下。';
@@ -643,7 +647,7 @@ function slotNow(){return new Date().getHours()<14?'m':'e';}
 var slotSel=slotNow();
 function stepsFor(slot){ var a=['brush']; if(S.settings.flossSlot===slot){ a.push('floss'); if(anyRet()) a.push('inter'); } return a; }
 function startSession(slot){
-  sess={slot:slot,phase:'prep',zones:buildZones(),zi:0,running:false,secPer:S.settings.sec,steps:stepsFor(slot),remain:0,endAt:0,archJaw:null,seq:{floss:{steps:buildFlossSteps(),i:0,aj:null},inter:{steps:buildInterSteps(),i:0,aj:null}},quitAsk:false,didFloss:false,didInter:false,result:null};
+  sess={slot:slot,phase:'prep',zones:buildZones(),zi:0,running:false,secPer:S.settings.sec,steps:stepsFor(slot),remain:0,endAt:0,archJaw:null,count:3,seq:{inter:{steps:buildInterSteps(),i:0,aj:null}},quitAsk:false,didFloss:false,didInter:false,result:null};
   renderSession();
 }
 function stopTick(){ if(tickT){clearInterval(tickT);tickT=null;} }
@@ -655,9 +659,27 @@ function beginBrush(){
     if(actx&&actx.state==='suspended') actx.resume();
   }catch(e){}
   lockScreen();
+  sess.phase='count'; renderSession(); startCount();
+}
+/* 3-2-1 before the first zone; restarts from 3 whenever the page comes back (e.g. from YouTube) */
+function startCount(){
+  stopTick(); sess.count=3; paintCount();
+  tickT=setInterval(function(){
+    sess.count--;
+    if(sess.count<=0){ stopTick(); startBrush(); } else paintCount();
+  },1000);
+}
+function paintCount(){
+  var el=$('#cd'); if(!el) return;
+  el.textContent=sess.count; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  cue('zone');
+}
+function startBrush(){
   sess.phase='brush'; sess.zi=0; sess.running=true; sess.remain=sess.secPer*1000; sess.endAt=performance.now()+sess.remain;
   cue('start'); renderSession(); stopTick(); tickT=setInterval(tick,100);
 }
+function ytUrl(){ var y=S.settings.yt; return (y&&y.on&&/^https?:\/\/\S+$/i.test(y.url))?y.url:''; }
+function openMusic(){ var u=ytUrl(); if(u){ try{ W.open(u,'_blank','noopener'); }catch(e){} } }
 function pause(){ if(!sess||!sess.running) return; sess.remain=Math.max(0,sess.endAt-performance.now()); sess.running=false; setPauseUI(); }
 function resume(){ if(!sess||sess.running) return; sess.endAt=performance.now()+sess.remain; sess.running=true; setPauseUI(); }
 function setPauseUI(){
@@ -702,7 +724,7 @@ function complete(){
 }
 
 function mark(z,cls){
-  [2*z.p,2*z.p+1].forEach(function(i){ var el=document.getElementById('s-b-'+i+'-'+z.surf); if(el) el.classList.add(cls); });
+  [z.p,z.p+1].forEach(function(i){ var el=document.getElementById('s-b-'+i+'-'+z.surf); if(el) el.classList.add(cls); });
 }
 function paintZone(){
   var z=sess.zones[sess.zi], arch=$('#arch'); if(!arch) return;
@@ -712,7 +734,7 @@ function paintZone(){
   mark(z,'active');
   $('#zj').textContent=z.jaw==='u'?'上排':'下排';
   $('#zs').textContent=SURF[z.surf];
-  $('#zn').textContent=PAIR_NAMES[z.p];
+  $('#zn').textContent=pairName(z.p);
   $('#pcnt').textContent=(sess.zi+1)+' / '+sess.zones.length;
   $('#tip').textContent=tipFor(z);
 }
@@ -738,14 +760,20 @@ function stepTop(label,n,total){
 }
 function prepView(){
   var sec=sess.secPer, withF=sess.steps.indexOf('floss')>=0, hasR=anyRet();
-  var fs=buildFlossSteps(), nu=fs.filter(function(x){return x.jaw==='u';}).length, nl=fs.length-nu;
-  var flossNote='上排 '+nu+' 組、下排 '+nl+' 組'+(hasR?'，下排維持器那一段跳過':'');
+  var flossNote='先上排、再下排，都從左邊到右邊'+(hasR?'，'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器那一段跳過':'');
   return '<div class="sess"><header class="s-top"><button class="icon-btn" data-act="prepBack" aria-label="返回">'+ICO.x+'</button><div class="s-label">'+slotName(sess.slot)+'刷牙</div></header>'+
    '<div class="prep"><div>'+buddy(S.buddy,'l float')+'</div><h2>準備好就開始</h2><ol class="plan">'+
-   '<li><b>刷牙</b><span>上排 18 區、下排 18 區，每區 '+sec+' 秒，共 '+mmss(36*sec)+'</span></li>'+
-   (withF?'<li><b>牙線</b><span>兩個牙縫一組，做完按「下一組」。'+flossNote+'</span></li>'+(hasR?'<li><b>牙間刷</b><span>'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器鐵絲周圍，共 '+buildInterSteps().length+' 組</span></li>':''):'')+
-   '</ol><p class="hint">'+(withF?(hasR?'牙線和牙間刷先放在手邊。':'牙線先放在手邊。'):'')+'想聽音樂的話，先用手機的音樂 App 播放，再按開始。</p></div>'+
+   '<li><b>刷牙</b><span>上排 '+(ZONE_N/2)+' 區、下排 '+(ZONE_N/2)+' 區，兩顆一區、每次往後移一顆，每區 '+sec+' 秒，共 '+mmss(ZONE_N*sec)+'</span></li>'+
+   (withF?'<li><b>牙線</b><span>'+flossNote+'，做完按「牙線完成」。</span></li>'+(hasR?'<li><b>牙間刷</b><span>'+['u','l'].filter(retOn).map(jawName).join('、')+'維持器鐵絲周圍，共 '+buildInterSteps().length+' 組</span></li>':''):'')+
+   '</ol><p class="hint">'+(withF?(hasR?'牙線和牙間刷先放在手邊。':'牙線先放在手邊。'):'')+
+   (ytUrl()?'按開始會同時打開 YouTube 音樂，播放後回到這裡，倒數 3 秒開始。':'按開始後倒數 3 秒。想聽音樂可以在設定裡加 YouTube 連結。')+'</p></div>'+
    '<div class="s-ctl2"><button class="btn primary big" data-act="prepGo">開始</button></div></div>';
+}
+function countView(){
+  var z=sess.zones[0];
+  return '<div class="sess"><header class="s-top"><button class="icon-btn" data-act="countBack" aria-label="返回">'+ICO.x+'</button><div class="s-label">'+slotName(sess.slot)+'刷牙</div></header>'+
+   '<div class="prep"><p class="hint">第一區</p><h2>'+jawName(z.jaw)+SURF[z.surf]+'<br>'+pairName(z.p)+'</h2>'+
+   '<div class="cd" id="cd" aria-live="assertive">3</div><p class="hint">牙刷放到位置，準備開始</p></div></div>';
 }
 function brushView(){
   return '<div class="sess">'+
@@ -758,7 +786,6 @@ function brushView(){
    (sess.quitAsk?quitSheet():'')+'</div>';
 }
 var GAP_META={
-  floss:{title:'牙線',pre:'f-',mode:'seq',next:'這組完成，下一組',last:'牙線完成'},
   inter:{title:'牙間刷',pre:'i-',mode:'seqi',next:'這組完成，下一組',last:'牙間刷完成'}
 };
 function flossDemo(){
@@ -774,9 +801,16 @@ function flossDemo(){
    '</svg><div class="capbox"><p class="cap c1">① 拉緊線，前後輕輕拉鋸，滑進牙縫</p><p class="cap c2">② 彎成 C 字形貼住一顆牙，上下刮</p><p class="cap c3">③ 換另一顆牙，再刮一次</p></div></div>';
 }
 function gapView(kind){
-  var m=GAP_META[kind], n=sess.steps.indexOf(kind)+1, tot=sess.steps.length, how;
-  if(kind==='floss'){
-    how=(S.settings.flossAnim?flossDemo():'')+
+  var m=GAP_META[kind], n=sess.steps.indexOf(kind)+1, tot=sess.steps.length;
+  var how='<p class="muted small">牙間刷對準鐵絲和牙齒之間的縫，輕輕進出幾次。<b>牙間刷的尺寸一定要請牙醫幫你挑</b>，太大會傷牙齦。放不進去就不要硬塞，回診時問牙醫。</p>';
+  return '<div class="sess">'+stepTop(m.title,n,tot)+
+   '<div class="s-zone"><div class="chips"><span class="chip j" id="gj"></span><span class="chip s" id="gc"></span></div><h2 class="s-name" id="gn"></h2></div>'+
+   '<div class="s-arch sm" id="garch"></div>'+how+
+   '<div class="s-ctl2"><button class="btn primary big" id="gnext" data-act="'+kind+'Next"></button><div class="row2"><button class="btn" data-act="'+kind+'Prev">上一組</button><button class="btn ghost" data-act="'+kind+'Skip">今天先跳過</button></div></div>'+
+   (sess.quitAsk?quitSheet():'')+'</div>';
+}
+function flossHow(){
+  return (S.settings.flossAnim?flossDemo():'')+
      '<details class="how"><summary>牙線怎麼用（ADA 建議步驟）</summary><ol>'+
      '<li>拉出約 45 公分（18 吋）的線，大部分繞在一隻中指上，剩下的繞在另一手的中指。</li>'+
      '<li>用拇指和食指把線拉緊。</li>'+
@@ -785,14 +819,6 @@ function gapView(kind){
      '<li>線緊貼牙齒、稍微離開牙齦，順著牙齒的形狀上下摩擦。</li>'+
      '<li>上下排每顆牙都這樣做，最後面那顆牙的後側也別忘了。</li></ol>'+
      '<p class="small muted src">步驟依據：美國牙醫學會（ADA）MouthHealthy〈<a href="https://www.mouthhealthy.org/all-topics-a-z/flossing" target="_blank" rel="noopener">Flossing</a>〉</p></details>';
-  } else {
-    how='<p class="muted small">牙間刷對準鐵絲和牙齒之間的縫，輕輕進出幾次。<b>牙間刷的尺寸一定要請牙醫幫你挑</b>，太大會傷牙齦。放不進去就不要硬塞，回診時問牙醫。</p>';
-  }
-  return '<div class="sess">'+stepTop(m.title,n,tot)+
-   '<div class="s-zone"><div class="chips"><span class="chip j" id="gj"></span><span class="chip s" id="gc"></span></div><h2 class="s-name" id="gn"></h2></div>'+
-   '<div class="s-arch sm" id="garch"></div>'+how+
-   '<div class="s-ctl2"><button class="btn primary big" id="gnext" data-act="'+kind+'Next"></button><div class="row2"><button class="btn" data-act="'+kind+'Prev">上一組</button><button class="btn ghost" data-act="'+kind+'Skip">今天先跳過</button></div></div>'+
-   (sess.quitAsk?quitSheet():'')+'</div>';
 }
 function paintGap(kind){
   var m=GAP_META[kind], q=sess.seq[kind], st=q.steps[q.i], arch=$('#garch'); if(!arch) return;
@@ -813,7 +839,16 @@ function gapNext(kind){
   else nextStep(kind,true);
 }
 function gapPrev(kind){ var q=sess.seq[kind]; if(q.i>0){ q.i--; paintGap(kind); } }
-function flossView(){ return gapView('floss'); }
+function flossView(){
+  var n=sess.steps.indexOf('floss')+1, tot=sess.steps.length, rj=['u','l'].filter(retOn);
+  var fig=function(j,no){ return '<figure><div class="box">'+archSVG('f'+j+'-',j,{gaps:'floss'})+'</div><figcaption>'+no+' '+jawName(j)+'：左 → 右</figcaption></figure>'; };
+  return '<div class="sess">'+stepTop('牙線',n,tot)+
+   '<div class="s-zone"><h2 class="s-name">先上排，再下排，都從左邊到右邊</h2>'+
+   '<p class="hint">左右是照鏡子看到的方向，跟圖一樣。'+(rj.length?rj.map(jawName).join('、')+'維持器那一段（虛線）跳過，等一下用牙間刷。':'')+'</p></div>'+
+   '<div class="archpair">'+fig('u','①')+fig('l','②')+'</div>'+flossHow()+
+   '<div class="s-ctl2"><button class="btn primary big" data-act="flossDone">牙線完成</button><button class="btn ghost" data-act="flossSkip">今天先跳過</button></div>'+
+   (sess.quitAsk?quitSheet():'')+'</div>';
+}
 function interView(){ return gapView('inter'); }
 function confetti(){
   var cols=['var(--active)','var(--done)','var(--coin)','var(--brand)'], h='<div class="confetti" aria-hidden="true">', i;
@@ -836,9 +871,9 @@ function renderSession(){
   if(!sess){ o.hidden=true; o.innerHTML=''; return; }
   o.hidden=false;
   var ph=sess.phase;
-  o.innerHTML= ph==='prep'?prepView(): ph==='brush'?brushView(): ph==='floss'?flossView(): ph==='inter'?interView(): doneView();
+  o.innerHTML= ph==='prep'?prepView(): ph==='count'?countView(): ph==='brush'?brushView(): ph==='floss'?flossView(): ph==='inter'?interView(): doneView();
   if(ph==='brush'){ sess.archJaw=null; paintZone(); paintTimer(); setPauseUI(); }
-  if(ph==='floss'||ph==='inter'){ sess.seq[ph].aj=null; paintGap(ph); }
+  if(ph==='inter'){ sess.seq[ph].aj=null; paintGap(ph); }
 }
 
 /* ---------- main views ---------- */
@@ -851,7 +886,7 @@ function viewToday(){
   return '<div class="top"><span class="brand">護牙日課</span><div class="pills"><span class="pill streak">'+ICO.flame+'<span class="num">'+st+'</span></span><span class="pill">'+ICO.coin+'<span class="num">'+S.points+'</span></span></div></div>'+
    '<div class="hero">'+buddy(S.buddy,'l float')+'<div><h1>'+greet+'</h1><p>'+(S.totals.brush===0?'一天兩次，把牙齒好好照顧起來。':'今天的'+slotName(slot)+(done?'已經完成。':'還沒刷。'))+'</p></div></div>'+
    '<div class="seg" role="group" aria-label="選擇時段"><button data-act="slot" data-slot="m" aria-pressed="'+(slot==='m')+'">早上</button><button data-act="slot" data-slot="e" aria-pressed="'+(slot==='e')+'">晚上</button></div>'+
-   '<button class="btn primary big" data-act="start">開始'+slotName(slot)+'刷牙<span class="btn-sub">'+(done?'今天已完成，再做一次不加點數':withF?(anyRet()?'刷牙 → 牙線 → 牙間刷':'刷牙 → 牙線'):'只刷牙，共 '+mmss(36*S.settings.sec))+'</span></button>'+
+   '<button class="btn primary big" data-act="start">開始'+slotName(slot)+'刷牙<span class="btn-sub">'+(done?'今天已完成，再做一次不加點數':withF?(anyRet()?'刷牙 → 牙線 → 牙間刷':'刷牙 → 牙線'):'只刷牙，共 '+mmss(ZONE_N*S.settings.sec))+'</span></button>'+
    '<div class="card"><h3>今天</h3><ul class="chk" style="grid-template-columns:repeat('+chk.length+',1fr)">'+chk.map(function(c){var on=!!r[c[0]];return '<li class="'+(on?'on':'')+'"><span class="dot">'+(on?ICO.check:'')+'</span>'+c[1]+'</li>';}).join('')+'</ul></div>'+
    '<div class="card"><h3>你正在成為好好照顧牙齒的人</h3><p class="muted">'+(S.totals.brush===0?'完成第一次刷牙，就是投下第一票。':'到目前為止，你已經投了 '+S.totals.brush+' 票。')+'</p>'+
    (nb?'<div><div class="row-between small"><span>下一個徽章：<b>'+esc(nb.b.name)+'</b></span><span class="num">'+nb.cur+' / '+nb.goal+'</span></div><div class="bar" style="margin-top:6px"><i style="width:'+Math.round(nb.ratio*100)+'%"></i></div></div>':'')+'</div>'+
@@ -937,12 +972,19 @@ function retainerCard(){
   return '<div class="card"><h3>固定式維持器</h3><p class="muted small">黏在牙齒內側的鐵絲，上下排都可能有。有鐵絲的那一排，牙線會跳過鐵絲範圍，改用牙間刷。牙間刷的尺寸一定要請牙醫幫你挑，太大會傷牙齦。</p>'+
    rows+['u','l'].filter(retOn).map(retainerPicker).join('')+'</div>';
 }
+function musicCard(){
+  var y=S.settings.yt;
+  return '<div class="card"><div class="setting"><div><h3>開始時打開 YouTube 音樂</h3><p class="muted small">按「開始」會同時打開這個連結。播放後回到這裡，倒數 3 秒再開始刷牙。</p></div><button class="switch" data-act="toggleYt" aria-pressed="'+y.on+'" aria-label="開始時打開 YouTube 音樂"></button></div>'+
+   (y.on?'<label class="field"><span class="small muted">YouTube 連結</span><input type="url" id="yturl" inputmode="url" autocomplete="off" placeholder="https://www.youtube.com/watch?v=…" value="'+esc(y.url)+'"></label>'+
+     (ytUrl()?'':'<p class="small" style="color:var(--active)">還沒有可以用的連結，請貼上 https:// 開頭的 YouTube 網址。</p>'):'')+'</div>';
+}
 function viewSettings(){
   var st=S.settings;
   return '<div class="top"><span class="brand">設定</span></div>'+
-   '<div class="card"><h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 36 區，全部刷完 '+mmss(36*st.sec)+'。</p></div>'+
+   '<div class="card"><h3>每一區停留</h3><div class="stepper"><button class="icon-btn" data-act="secDec" aria-label="減少一秒">−</button><b>'+st.sec+' 秒</b><button class="icon-btn" data-act="secInc" aria-label="增加一秒">＋</button></div><p class="muted small">上下排共 '+ZONE_N+' 區（兩顆一區，每次往後移一顆），全部刷完 '+mmss(ZONE_N*st.sec)+'。</p></div>'+
    retainerCard()+
    '<div class="card"><div class="setting"><div><h3>牙線教學動畫</h3><p class="muted small">牙線步驟上方顯示動作示範，關掉就只剩文字說明。</p></div><button class="switch" data-act="toggleAnim" aria-pressed="'+st.flossAnim+'" aria-label="牙線教學動畫"></button></div></div>'+
+   musicCard()+
    '<div class="card"><h3>牙線（和牙間刷）放在</h3><div class="seg"><button data-act="flossSlot" data-slot="m" aria-pressed="'+(st.flossSlot==='m')+'">早上</button><button data-act="flossSlot" data-slot="e" aria-pressed="'+(st.flossSlot==='e')+'">晚上</button></div></div>'+
    '<div class="card"><div class="setting"><div><h3>提示音</h3><p class="muted small">換區時響一聲</p></div><button class="switch" data-act="toggleSound" aria-pressed="'+st.sound+'" aria-label="提示音"></button></div>'+
    '<div class="setting"><div><h3>震動</h3><p class="muted small">換區時震一下</p></div><button class="switch" data-act="toggleVibe" aria-pressed="'+st.vibe+'" aria-label="震動"></button></div></div>'+
@@ -967,16 +1009,16 @@ function act(a,d){
     case 'tab': tab=d.tab; if(tab==='log'){calM=null;selDay=todayStr();} resetAsk=false; pickFrom=null; render(); W.scrollTo(0,0); break;
     case 'slot': slotSel=d.slot; render(); break;
     case 'start': startSession(slotSel); break;
-    case 'prepGo': beginBrush(); break;
+    case 'prepGo': openMusic(); beginBrush(); break;
+    case 'countBack': stopTick(); sess.phase='prep'; renderSession(); break;
     case 'prepBack': case 'quitYes': case 'close': endSession(); break;
     case 'quit': if(sess.phase==='brush') pause(); sess.quitAsk=true; renderSession(); break;
     case 'quitNo': sess.quitAsk=false; renderSession(); break;
     case 'pause': if(sess.running) pause(); else resume(); break;
     case 'prev': jump(-1); break;
     case 'next': jump(1); break;
-    case 'flossNext': gapNext('floss'); break;
+    case 'flossDone': nextStep('floss',true); break;
     case 'interNext': gapNext('inter'); break;
-    case 'flossPrev': gapPrev('floss'); break;
     case 'interPrev': gapPrev('inter'); break;
     case 'flossSkip': nextStep('floss',false); break;
     case 'interSkip': nextStep('inter',false); break;
@@ -1001,6 +1043,7 @@ function act(a,d){
       render(); break;
     case 'pickCancel': pickFrom=null; render(); break;
     case 'pickDefault': S.settings.ret[d.j].from=4; S.settings.ret[d.j].to=9; pickFrom=null; save(); render(); break;
+    case 'toggleYt': S.settings.yt.on=!S.settings.yt.on; save(); render(); break;
     case 'toggleAnim': S.settings.flossAnim=!S.settings.flossAnim; save(); render(); break;
     case 'toggleSound': S.settings.sound=!S.settings.sound; save(); render(); break;
     case 'toggleVibe': S.settings.vibe=!S.settings.vibe; save(); render(); break;
@@ -1018,10 +1061,16 @@ document.addEventListener('click',function(e){
   if(!b||b.disabled) return;
   act(b.getAttribute('data-act'),b.dataset);
 });
+document.addEventListener('input',function(e){
+  if(e.target.id==='yturl'){ S.settings.yt.url=e.target.value.trim(); save(); }
+});
+document.addEventListener('change',function(e){
+  if(e.target.id==='yturl') render();
+});
 document.addEventListener('visibilitychange',function(){
   if(!sess) return;
-  if(document.hidden){ if(sess.phase==='brush'&&sess.running) pause(); }
-  else if(sess.phase!=='prep'&&sess.phase!=='done') lockScreen();
+  if(document.hidden){ if(sess.phase==='brush'&&sess.running) pause(); if(sess.phase==='count') stopTick(); }
+  else if(sess.phase!=='prep'&&sess.phase!=='done'){ lockScreen(); if(sess.phase==='count') startCount(); }
 });
 
 render();
